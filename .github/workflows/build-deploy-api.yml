@@ -28,9 +28,12 @@ jobs:
       - name: Build and push image to ACR
         env:
           ACR_LOGIN_SERVER: ${{ vars.ACR_NAME }}.azurecr.io
-          ACR_USERNAME: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}
-          ACR_PASSWORD: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }}
+          AZURE_CREDENTIALS_JSON: ${{ secrets.AZURE_CREDENTIALS }}
         run: |
+          ACR_USERNAME=$(echo "$AZURE_CREDENTIALS_JSON" | jq -r '.clientId')
+          ACR_PASSWORD=$(echo "$AZURE_CREDENTIALS_JSON" | jq -r '.clientSecret')
+          echo "::add-mask::$ACR_USERNAME"
+          echo "::add-mask::$ACR_PASSWORD"
           echo "$ACR_PASSWORD" | docker login "$ACR_LOGIN_SERVER" --username "$ACR_USERNAME" --password-stdin
           docker build -t "$ACR_LOGIN_SERVER/todomanagement-api:latest" -f src/api/Dockerfile src/api
           docker push "$ACR_LOGIN_SERVER/todomanagement-api:latest"
