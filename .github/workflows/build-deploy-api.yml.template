@@ -26,21 +26,17 @@ jobs:
           az extension add --name containerapp --upgrade
 
       - name: Build and push image to ACR
-        env:
-          ACR_LOGIN_SERVER: ${{ vars.ACR_NAME }}.azurecr.io
-          AZURE_CREDENTIALS_JSON: ${{ secrets.AZURE_CREDENTIALS }}
-        run: |
-          ACR_USERNAME=$(echo "$AZURE_CREDENTIALS_JSON" | jq -er '.clientId')
-          ACR_PASSWORD=$(echo "$AZURE_CREDENTIALS_JSON" | jq -er '.clientSecret')
-          echo "::add-mask::$ACR_USERNAME"
-          echo "::add-mask::$ACR_PASSWORD"
-          if [ -z "$ACR_USERNAME" ] || [ -z "$ACR_PASSWORD" ]; then
-            echo "ACR credentials are missing in AZURE_CREDENTIALS"
-            exit 1
-          fi
-          echo "$ACR_PASSWORD" | docker login "$ACR_LOGIN_SERVER" --username "$ACR_USERNAME" --password-stdin
-          docker build -t "$ACR_LOGIN_SERVER/todomanagement-api:latest" -f src/api/Dockerfile src/api
-          docker push "$ACR_LOGIN_SERVER/todomanagement-api:latest"
+        uses: Azure/acr-build@v1
+        with:
+          service_principal: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}
+          service_principal_password: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }}
+          tenant: ${{ fromJson(secrets.AZURE_CREDENTIALS).tenantId }}
+          registry: ${{ vars.ACR_NAME }}
+          repository: todomanagement-api
+          tag: latest
+          dockerfile: Dockerfile
+          folder: src/api
+          branch: main
 
       - name: Deploy to Container App
         run: |
